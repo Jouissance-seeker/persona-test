@@ -1,13 +1,25 @@
 import './globals.css';
+import { cn } from '@/utils/cn';
+import { Vazirmatn } from 'next/font/google';
+import { PropsWithChildren } from 'react';
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+const vazirmatn = Vazirmatn({
+  subsets: ['arabic'],
+  variable: '--font-vazirmatn',
+  display: 'swap',
+});
+
+export default function RootLayout(props: PropsWithChildren) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body
+        className={cn(
+          vazirmatn.className,
+          'flex min-h-dvh flex-col items-center justify-center',
+        )}
+      >
+        {props.children}
+      </body>
     </html>
   );
 }
