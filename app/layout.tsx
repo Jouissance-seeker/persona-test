@@ -11,7 +11,7 @@ const vazirmatn = Vazirmatn({
 
 export default function RootLayout(props: PropsWithChildren) {
   return (
-    <html lang="en">
+    <html lang="fa" dir="rtl">
       <body
         className={cn(
           vazirmatn.className,
