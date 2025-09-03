@@ -7,14 +7,27 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  const data = [
+    'من دوست دارم به جدیدی آشنا شوم',
+    'خیلی خوب نیستم',
+    'سریع میتوانم با دیگران صحبت کنم',
+    'من همیشه با دیگران گفت و گو می‌کنم',
+    'احساس میکنم باید ناجیی دیگران باشم',
+    'من دوست دارم به دیگران کمک کنم',
+    'من دوست دارم به دیگران آموزش بدم',
+    'من دوست دارم به دیگران پیشنهاد بدم',
+    'من دوست دارم به دیگران راهنمایی کنم',
+    'من دوست دارم به دیگران تشویق کنم',
+    'من دوست دارم به دیگران تبریک بدم',
+    'من دوست دارم به دیگران میگم خوشحالم',
+    'من دوست دارم به دیگران میگم خوشحالم',
+  ];
+
   return (
-    <main className="w-full px-6 py-10">
-      <h1 className="mb-8 text-center text-2xl font-bold">
-        شما مرتب دوستان جدیدی پیدا می‌کنید.
-      </h1>
-      <div className="flex w-full justify-center">
-        <Likert />
-      </div>
+    <main className="flex w-full flex-col gap-8 py-5">
+      {data.map((item) => (
+        <Likert text={item} key={item} />
+      ))}
     </main>
   );
 }

@@ -2,90 +2,16 @@
 
 import { cn } from '../../lib/utils';
 import { Check } from 'lucide-react';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 type LikertProps = {
   onChange?: (value: number) => void;
+  text: string;
 };
-
-type ItemProps = {
-  index: number;
-  isSelected: boolean;
-  onSelect: (index: number) => void;
-};
-
-const LikertItem = memo(function LikertItem(props: ItemProps) {
-  const { index, isSelected, onSelect } = props;
-
-  return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={() => onSelect(index)}
-      className={cn(
-        'group relative rounded-full border-3 transition-colors',
-        index === 3
-          ? 'border-gray-400'
-          : index < 3
-            ? 'border-purple-600'
-            : 'border-emerald-600',
-        index === 0 || index === 6
-          ? 'h-20 w-20'
-          : index === 1 || index === 5
-            ? 'h-16 w-16'
-            : index === 2 || index === 4
-              ? 'h-14 w-14'
-              : 'h-12 w-12',
-      )}
-    >
-      <span
-        className={cn(
-          'block h-full w-full rounded-full transition-colors',
-          isSelected
-            ? index === 3
-              ? 'bg-gray-400'
-              : index < 3
-                ? 'bg-purple-600'
-                : 'bg-emerald-600'
-            : 'bg-transparent',
-        )}
-      />
-      <span
-        className={cn(
-          'pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity',
-          isSelected ? 'opacity-100' : 'group-hover:opacity-50',
-        )}
-      >
-        <Check
-          className={cn(
-            index === 0 || index === 6
-              ? 'h-8 w-8'
-              : index === 1 || index === 5
-                ? 'h-7 w-7'
-                : index === 2 || index === 4
-                  ? 'h-6 w-6'
-                  : 'h-5 w-5',
-            isSelected
-              ? 'text-white'
-              : index === 3
-                ? 'text-gray-500'
-                : index < 3
-                  ? 'text-purple-700'
-                  : 'text-emerald-700',
-          )}
-          strokeWidth={2}
-        />
-      </span>
-    </button>
-  );
-});
 
 export function Likert(props: LikertProps) {
   const [value, setValue] = useState<number | null>(null);
-
-  const items = useMemo(() => {
-    return Array.from({ length: 7 }, (_, index) => ({ index }));
-  }, []);
+  const items = useMemo(() => Array.from({ length: 5 }, (_, i) => i), []);
 
   const handleSelect = useCallback(
     (index: number) => {
@@ -95,23 +21,95 @@ export function Likert(props: LikertProps) {
     [props],
   );
 
+  const getColor = (index: number, selected: boolean) => {
+    if (!selected) return 'bg-transparent';
+    if (index === 2) return 'bg-gray-400';
+    return index < 2 ? 'bg-purple-600' : 'bg-emerald-600';
+  };
+
+  const getBorder = (index: number) =>
+    index === 2
+      ? 'border-gray-400'
+      : index < 2
+        ? 'border-purple-600'
+        : 'border-emerald-600';
+
+  const getIconColor = (index: number, selected: boolean) => {
+    if (selected) return 'text-white';
+    if (index === 2) return 'text-gray-500';
+    return index < 2 ? 'text-purple-700' : 'text-emerald-700';
+  };
+
+  const getButtonSize = (i: number) =>
+    i === 0 || i === 4
+      ? 'h-14 w-14 md:h-18 md:w-18'
+      : i === 1 || i === 3
+        ? 'h-12 w-12 md:h-15 md:w-15'
+        : 'h-10 w-10 md:h-12 md:w-12';
+
+  const getIconSize = (i: number) =>
+    i === 0 || i === 4
+      ? 'h-6 w-6 md:h-8 md:w-8'
+      : i === 1 || i === 3
+        ? 'h-5 w-5 md:h-7 md:w-7'
+        : 'h-4 w-4 md:h-5 md:w-5';
+
   return (
-    <div
-      dir="rtl"
-      className="flex w-full max-w-3xl items-center justify-between gap-4"
-    >
-      <span className="text-xl font-medium text-purple-600">مخالفم</span>
-      <div className="flex items-center gap-6">
-        {items.map((item) => (
-          <LikertItem
-            key={item.index}
-            index={item.index}
-            isSelected={value === item.index}
-            onSelect={handleSelect}
-          />
-        ))}
+    <div>
+      <h1 className="mb-3 text-center text-lg font-medium md:text-xl">
+        {props.text}
+      </h1>
+      <div className="flex w-full justify-center">
+        <div className="flex justify-center">
+          <div className="relative flex w-full items-center gap-5" dir="rtl">
+            <span className="absolute right-1 -bottom-9 text-base text-purple-600 md:static md:text-xl">
+              مخالفم
+            </span>
+            <div className="flex items-center gap-3 md:gap-4">
+              {items.map((index) => {
+                const isSelected = value === index;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => handleSelect(index)}
+                    className={cn(
+                      'group relative rounded-full border-2 transition-colors',
+                      getBorder(index),
+                      getButtonSize(index),
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'block h-full w-full rounded-full transition-colors',
+                        getColor(index, isSelected),
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        'pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity',
+                        isSelected ? 'opacity-100' : 'group-hover:opacity-50',
+                      )}
+                    >
+                      <Check
+                        strokeWidth={1.5}
+                        className={cn(
+                          getIconSize(index),
+                          getIconColor(index, isSelected),
+                        )}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <span className="absolute -bottom-9 left-1 text-base text-emerald-600 md:static md:text-xl">
+              موافقم
+            </span>
+          </div>
+        </div>
       </div>
-      <span className="text-xl font-medium text-emerald-600">موافقم</span>
     </div>
   );
 }
