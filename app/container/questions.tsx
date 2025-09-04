@@ -1,15 +1,89 @@
-'use client';
-
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-type LikertProps = {
+interface QuestionsProps {
+  data: string[];
+}
+
+export const Questions = (props: QuestionsProps) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const handleAnswer = useCallback(
+    (_value: number) => {
+      setTimeout(() => {
+        if (currentIndex < props.data.length - 1) {
+          setCurrentIndex((prev) => prev + 1);
+        }
+      }, 500);
+    },
+    [currentIndex],
+  );
+
+  const getSlideScale = (index: number) => {
+    const distance = Math.abs(index - currentIndex);
+    return Math.max(0.6, 1 - distance * 0.2);
+  };
+
+  const getSlideMotion = (index: number) => {
+    const distance = Math.abs(index - currentIndex);
+    const blur = Math.min(distance * 2, 12);
+    const opacity = Math.max(0.3, 1 - distance * 0.7);
+
+    const scale = getSlideScale(index);
+
+    let y = (index - currentIndex) * 90;
+
+    if (index < currentIndex) y -= 40;
+    if (index > currentIndex) y += 40;
+
+    return {
+      filter: `blur(${blur}px)`,
+      opacity,
+      y,
+      scale,
+    };
+  };
+
+  return (
+    <main className="flex h-screen w-full items-center justify-center overflow-hidden">
+      <div className="relative w-full max-w-4xl">
+        <AnimatePresence mode="popLayout">
+          {props.data.map((item, index) => (
+            <motion.div
+              key={index}
+              className={cn(
+                'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+                'flex items-center justify-center px-4',
+                { 'pointer-events-none': index !== currentIndex },
+              )}
+              style={{
+                transformOrigin: 'center',
+              }}
+              initial={getSlideMotion(index)}
+              animate={getSlideMotion(index)}
+              transition={{
+                duration: 0.6,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              layout
+            >
+              <Question text={item} onChange={handleAnswer} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </main>
+  );
+};
+
+type QuestionProps = {
   onChange?: (value: number) => void;
   text: string;
 };
 
-export function Likert(props: LikertProps) {
+const Question = (props: QuestionProps) => {
   const [value, setValue] = useState<number | null>(null);
   const items = useMemo(() => Array.from({ length: 5 }, (_, i) => i), []);
 
@@ -42,23 +116,21 @@ export function Likert(props: LikertProps) {
 
   const getButtonSize = (i: number) =>
     i === 0 || i === 4
-      ? 'h-14 w-14 md:h-18 md:w-18'
+      ? 'size-14 md:size-18'
       : i === 1 || i === 3
-        ? 'h-12 w-12 md:h-15 md:w-15'
-        : 'h-10 w-10 md:h-12 md:w-12';
+        ? 'size-12 md:size-15'
+        : 'size-10 md:size-12';
 
   const getIconSize = (i: number) =>
     i === 0 || i === 4
-      ? 'h-6 w-6 md:h-8 md:w-8'
+      ? 'size-6 md:size-8'
       : i === 1 || i === 3
-        ? 'h-5 w-5 md:h-7 md:w-7'
-        : 'h-4 w-4 md:h-5 md:w-5';
+        ? 'size-5 md:size-7'
+        : 'size-4 md:size-5';
 
   return (
     <div>
-      <h1 className="mb-3 text-center text-lg font-medium md:text-xl">
-        {props.text}
-      </h1>
+      <h1 className="mb-3 text-center font-medium md:text-xl">{props.text}</h1>
       <div className="flex w-full justify-center">
         <div className="flex justify-center">
           <div className="relative flex w-full items-center gap-5" dir="rtl">
@@ -82,7 +154,7 @@ export function Likert(props: LikertProps) {
                   >
                     <span
                       className={cn(
-                        'block h-full w-full rounded-full transition-colors',
+                        'block size-full rounded-full transition-colors',
                         getColor(index, isSelected),
                       )}
                     />
@@ -112,4 +184,4 @@ export function Likert(props: LikertProps) {
       </div>
     </div>
   );
-}
+};
