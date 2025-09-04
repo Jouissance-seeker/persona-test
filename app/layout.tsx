@@ -18,7 +18,9 @@ export default function RootLayout(props: PropsWithChildren) {
           'flex min-h-dvh flex-col items-center justify-center',
         )}
       >
-        {props.children}
+        <main className="flex h-screen w-full items-center justify-center overflow-hidden">
+          {props.children}
+        </main>
       </body>
     </html>
   );

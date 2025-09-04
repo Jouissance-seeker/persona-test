@@ -1,25 +1,79 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 interface QuestionsProps {
-  data: string[];
+  data: Record<string, string[]> | string[];
+  onAnswer?: (key: string, value: number) => void;
 }
 
 export const Questions = (props: QuestionsProps) => {
+  const isArrayInput = Array.isArray(props.data);
+
+  const flatQuestions = useMemo(() => {
+    if (isArrayInput) {
+      return (props.data as string[]).map((text) => ({ key: 'default', text }));
+    }
+    const items: Array<{ key: string; text: string }> = [];
+    for (const [key, list] of Object.entries(
+      props.data as Record<string, string[]>,
+    )) {
+      for (const q of list) items.push({ key, text: q });
+    }
+    return items;
+  }, [props.data, isArrayInput]);
+
+  const [shuffledQuestions, setShuffledQuestions] = useState<
+    typeof flatQuestions
+  >([]);
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const arr = flatQuestions.slice();
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    setShuffledQuestions(arr);
+    setCurrentIndex(0);
+    setReady(true);
+  }, [flatQuestions]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [completed, setCompleted] = useState(false);
+  const [hideProgress, setHideProgress] = useState(false);
 
   const handleAnswer = useCallback(
-    (_value: number) => {
+    (value: number) => {
+      const current = shuffledQuestions[currentIndex];
+      const increment = (value + 1) * 2;
+      props.onAnswer?.(current.key, increment);
+
       setTimeout(() => {
-        if (currentIndex < props.data.length - 1) {
+        if (currentIndex < shuffledQuestions.length - 1) {
           setCurrentIndex((prev) => prev + 1);
+        } else {
+          setCompleted(true);
         }
       }, 500);
     },
-    [currentIndex],
+    [currentIndex, shuffledQuestions, props],
   );
+
+  useEffect(() => {
+    if (!completed) return;
+    const timer = setTimeout(() => setHideProgress(true), 600);
+    return () => clearTimeout(timer);
+  }, [completed]);
 
   const getSlideScale = (index: number) => {
     const distance = Math.abs(index - currentIndex);
@@ -46,11 +100,44 @@ export const Questions = (props: QuestionsProps) => {
     };
   };
 
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden" />
+    );
+  }
+
   return (
-    <main className="flex h-screen w-full items-center justify-center overflow-hidden">
+    <div className="flex h-screen w-full items-center justify-center overflow-hidden">
+      {(() => {
+        if (hideProgress) return null;
+        const total = shuffledQuestions.length;
+        const progress = Math.min(
+          100,
+          (completed ? 1 : currentIndex / total) * 100,
+        );
+        return (
+          <div
+            dir="ltr"
+            className="fixed top-0 right-0 left-0 z-50 h-1.5 w-full"
+          >
+            <div
+              className="h-full bg-purple-600 transition-[width] duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        );
+      })()}
+
+      <div className="fixed top-4 right-3 z-50 rounded-lg bg-emerald-600 px-3 pt-1.5 pb-1 text-xs text-white backdrop-blur md:right-4 md:px-3 md:text-sm">
+        {currentIndex + 1} از {shuffledQuestions.length}
+      </div>
+
+      <div className="fixed top-4 left-3 z-50 w-fit rounded-lg bg-purple-600 px-3 pt-1.5 pb-1 text-xs text-white backdrop-blur md:left-4 md:px-3 md:text-sm">
+        <p>آرکتایپ مردان</p>
+      </div>
       <div className="relative w-full max-w-4xl">
         <AnimatePresence mode="popLayout">
-          {props.data.map((item, index) => (
+          {shuffledQuestions.map((item, index) => (
             <motion.div
               key={index}
               className={cn(
@@ -69,12 +156,12 @@ export const Questions = (props: QuestionsProps) => {
               }}
               layout
             >
-              <Question text={item} onChange={handleAnswer} />
+              <Question text={item.text} onChange={handleAnswer} />
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
-    </main>
+    </div>
   );
 };
 
@@ -131,7 +218,7 @@ const Question = (props: QuestionProps) => {
   return (
     <div>
       <h1 className="mb-3 text-center font-medium md:text-xl">{props.text}</h1>
-      <div className="flex w-full justify-center">
+      <div dir="ltr" className="flex w-full justify-center">
         <div className="flex justify-center">
           <div className="relative flex w-full items-center gap-5" dir="rtl">
             <span className="absolute right-1 -bottom-9 text-base text-purple-600 md:static md:text-xl">
