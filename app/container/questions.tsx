@@ -1,9 +1,11 @@
 'use client';
 
+import questions from '@/data/questions.json';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -12,25 +14,35 @@ import {
 } from 'react';
 
 interface QuestionsProps {
-  data: Record<string, string[]> | string[];
+  type?: 'men' | 'women';
+  data?: Record<string, string[]> | string[];
   onAnswer?: (key: string, value: number) => void;
+  onComplete?: (scores: Record<string, number>) => void;
 }
 
 export const Questions = (props: QuestionsProps) => {
-  const isArrayInput = Array.isArray(props.data);
+  const sourceData: Record<string, string[]> | string[] = useMemo(() => {
+    if (props.data) return props.data;
+    const fromType = props.type === 'women' ? questions.women : questions.men;
+    return Object.fromEntries(
+      Object.entries(fromType).map(([k, arr]) => [k, arr as string[]]),
+    );
+  }, [props.data, props.type]);
+
+  const isArrayInput = Array.isArray(sourceData);
 
   const flatQuestions = useMemo(() => {
     if (isArrayInput) {
-      return (props.data as string[]).map((text) => ({ key: 'default', text }));
+      return (sourceData as string[]).map((text) => ({ key: 'default', text }));
     }
     const items: Array<{ key: string; text: string }> = [];
     for (const [key, list] of Object.entries(
-      props.data as Record<string, string[]>,
+      sourceData as Record<string, string[]>,
     )) {
       for (const q of list) items.push({ key, text: q });
     }
     return items;
-  }, [props.data, isArrayInput]);
+  }, [sourceData, isArrayInput]);
 
   const [shuffledQuestions, setShuffledQuestions] = useState<
     typeof flatQuestions
@@ -52,11 +64,21 @@ export const Questions = (props: QuestionsProps) => {
   const [completed, setCompleted] = useState(false);
   const [hideProgress, setHideProgress] = useState(false);
 
+  const [localScores, setLocalScores] = useState<Record<string, number>>({});
+
   const handleAnswer = useCallback(
     (value: number) => {
       const current = shuffledQuestions[currentIndex];
       const increment = (value + 1) * 2;
-      props.onAnswer?.(current.key, increment);
+
+      if (props.onAnswer) {
+        props.onAnswer(current.key, increment);
+      } else {
+        setLocalScores((prev) => ({
+          ...prev,
+          [current.key]: (prev[current.key] ?? 0) + increment,
+        }));
+      }
 
       setTimeout(() => {
         if (currentIndex < shuffledQuestions.length - 1) {
@@ -64,7 +86,7 @@ export const Questions = (props: QuestionsProps) => {
         } else {
           setCompleted(true);
         }
-      }, 500);
+      }, 300);
     },
     [currentIndex, shuffledQuestions, props],
   );
@@ -72,33 +94,53 @@ export const Questions = (props: QuestionsProps) => {
   useEffect(() => {
     if (!completed) return;
     const timer = setTimeout(() => setHideProgress(true), 600);
+    if (props.onComplete) props.onComplete(localScores);
     return () => clearTimeout(timer);
-  }, [completed]);
+  }, [completed, localScores, props]);
 
-  const getSlideScale = (index: number) => {
-    const distance = Math.abs(index - currentIndex);
-    return Math.max(0.6, 1 - distance * 0.2);
-  };
+  const getSlideScale = useCallback(
+    (index: number) => {
+      const distance = Math.abs(index - currentIndex);
+      return Math.max(0.6, 1 - distance * 0.2);
+    },
+    [currentIndex],
+  );
 
-  const getSlideMotion = (index: number) => {
-    const distance = Math.abs(index - currentIndex);
-    const blur = Math.min(distance * 2, 12);
-    const opacity = Math.max(0.3, 1 - distance * 0.7);
+  const getSlideMotion = useCallback(
+    (index: number) => {
+      const distance = Math.abs(index - currentIndex);
+      const blur = Math.min(distance * 2, 12);
+      const opacity = Math.max(0.3, 1 - distance * 0.7);
 
-    const scale = getSlideScale(index);
+      const scale = getSlideScale(index);
 
-    let y = (index - currentIndex) * 90;
+      let y = (index - currentIndex) * 90;
+      if (index < currentIndex) y -= 40;
+      if (index > currentIndex) y += 40;
 
-    if (index < currentIndex) y -= 40;
-    if (index > currentIndex) y += 40;
+      return { filter: `blur(${blur}px)`, opacity, y, scale } as const;
+    },
+    [currentIndex, getSlideScale],
+  );
 
-    return {
-      filter: `blur(${blur}px)`,
-      opacity,
-      y,
-      scale,
-    };
-  };
+  const total = shuffledQuestions.length;
+  const progress = useMemo(() => {
+    if (hideProgress) return 0;
+    return Math.min(
+      100,
+      (completed ? 1 : currentIndex / Math.max(total, 1)) * 100,
+    );
+  }, [hideProgress, completed, currentIndex, total]);
+
+  // Render only a small window around the current index to cut DOM cost
+  const visibleRange = 2;
+  const visibleIndices = useMemo(() => {
+    const start = Math.max(0, currentIndex - visibleRange);
+    const end = Math.min(total - 1, currentIndex + visibleRange);
+    const out: number[] = [];
+    for (let i = start; i <= end; i += 1) out.push(i);
+    return out;
+  }, [currentIndex, total]);
 
   if (!ready) {
     return (
@@ -108,57 +150,48 @@ export const Questions = (props: QuestionsProps) => {
 
   return (
     <div className="flex h-screen w-full items-center justify-center overflow-hidden">
-      {(() => {
-        if (hideProgress) return null;
-        const total = shuffledQuestions.length;
-        const progress = Math.min(
-          100,
-          (completed ? 1 : currentIndex / total) * 100,
-        );
-        return (
+      {progress > 0 && progress < 100 && (
+        <div dir="ltr" className="fixed top-0 right-0 left-0 z-50 h-1.5 w-full">
           <div
-            dir="ltr"
-            className="fixed top-0 right-0 left-0 z-50 h-1.5 w-full"
-          >
-            <div
-              className="h-full bg-purple-600 transition-[width] duration-500 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        );
-      })()}
+            className="h-full bg-purple-600 transition-[width] duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
 
       <div className="fixed top-4 right-3 z-50 rounded-lg bg-emerald-600 px-3 pt-1.5 pb-1 text-xs text-white backdrop-blur md:right-4 md:px-3 md:text-sm">
-        {currentIndex + 1} از {shuffledQuestions.length}
+        {currentIndex + 1} از {total}
       </div>
 
       <div className="fixed top-4 left-3 z-50 w-fit rounded-lg bg-purple-600 px-3 pt-1.5 pb-1 text-xs text-white backdrop-blur md:left-4 md:px-3 md:text-sm">
-        <p>آرکتایپ مردان</p>
+        <p>{props.type === 'women' ? 'آرکتایپ زنان' : 'آرکتایپ مردان'}</p>
       </div>
+
       <div className="relative w-full max-w-4xl">
         <AnimatePresence mode="popLayout">
-          {shuffledQuestions.map((item, index) => (
-            <motion.div
-              key={index}
-              className={cn(
-                'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-                'flex items-center justify-center px-4',
-                { 'pointer-events-none': index !== currentIndex },
-              )}
-              style={{
-                transformOrigin: 'center',
-              }}
-              initial={getSlideMotion(index)}
-              animate={getSlideMotion(index)}
-              transition={{
-                duration: 0.6,
-                ease: [0.25, 0.46, 0.45, 0.94],
-              }}
-              layout
-            >
-              <Question text={item.text} onChange={handleAnswer} />
-            </motion.div>
-          ))}
+          {visibleIndices.map((index) => {
+            const item = shuffledQuestions[index];
+            return (
+              <motion.div
+                key={index}
+                className={cn(
+                  'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+                  'flex items-center justify-center px-4',
+                  { 'pointer-events-none': index !== currentIndex },
+                )}
+                style={{ transformOrigin: 'center' }}
+                initial={getSlideMotion(index)}
+                animate={getSlideMotion(index)}
+                transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                layout
+              >
+                <Question
+                  text={item.text}
+                  onChange={index === currentIndex ? handleAnswer : undefined}
+                />
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
     </div>
@@ -170,7 +203,7 @@ type QuestionProps = {
   text: string;
 };
 
-const Question = (props: QuestionProps) => {
+const Question = memo((props: QuestionProps) => {
   const [value, setValue] = useState<number | null>(null);
   const items = useMemo(() => Array.from({ length: 5 }, (_, i) => i), []);
 
@@ -179,7 +212,7 @@ const Question = (props: QuestionProps) => {
       setValue(index);
       props.onChange?.(index);
     },
-    [props],
+    [props.onChange],
   );
 
   const getColor = (index: number, selected: boolean) => {
@@ -271,4 +304,6 @@ const Question = (props: QuestionProps) => {
       </div>
     </div>
   );
-};
+});
+
+Question.displayName = 'Question';
